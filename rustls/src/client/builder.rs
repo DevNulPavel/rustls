@@ -2,10 +2,10 @@ use crate::builder::{ConfigBuilder, WantsVerifier};
 use crate::client::handy;
 use crate::client::{ClientConfig, ResolvesClientCert};
 use crate::crypto::{CryptoProvider, KeyExchange};
-#[cfg(feature = "ring")]
-use crate::{error::Error, webpki};
 use crate::key_log::NoKeyLog;
 use crate::suites::SupportedCipherSuite;
+#[cfg(feature = "ring")]
+use crate::{error::Error, webpki};
 use crate::{verify, versions};
 
 use super::client_conn::Resumption;
