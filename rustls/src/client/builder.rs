@@ -16,23 +16,23 @@ use super::client_conn::Resumption;
 use pki_types::{CertificateDer, PrivateKeyDer};
 
 use alloc::sync::Arc;
-use core::marker::PhantomData;
 
-impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsVerifier> {
+impl ConfigBuilder<ClientConfig, WantsVerifier> {
     #[cfg(all(feature = "webpki", feature = "ring"))]
     /// Choose how to verify server certificates.
     pub fn with_root_certificates(
         self,
         root_store: impl Into<Arc<webpki::RootCertStore>>,
-    ) -> ConfigBuilder<ClientConfig<C>, WantsClientCert> {
+    ) -> ConfigBuilder<ClientConfig, WantsClientCert> {
         ConfigBuilder {
             state: WantsClientCert {
+                provider: self.state.provider,
                 cipher_suites: self.state.cipher_suites,
                 kx_groups: self.state.kx_groups,
                 versions: self.state.versions,
                 verifier: Arc::new(webpki::WebPkiServerVerifier::new(root_store)),
             },
-            side: PhantomData,
+            side: core::marker::PhantomData,
         }
     }
 
@@ -41,15 +41,16 @@ impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsVerifier> {
     pub fn with_custom_certificate_verifier(
         self,
         verifier: Arc<dyn verify::ServerCertVerifier>,
-    ) -> ConfigBuilder<ClientConfig<C>, WantsClientCert> {
+    ) -> ConfigBuilder<ClientConfig, WantsClientCert> {
         ConfigBuilder {
             state: WantsClientCert {
+                provider: self.state.provider,
                 cipher_suites: self.state.cipher_suites,
                 kx_groups: self.state.kx_groups,
                 versions: self.state.versions,
                 verifier,
             },
-            side: PhantomData,
+            side: core::marker::PhantomData,
         }
     }
 }
@@ -60,13 +61,14 @@ impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsVerifier> {
 /// For more information, see the [`ConfigBuilder`] documentation.
 #[derive(Clone)]
 pub struct WantsClientCert {
+    provider: &'static dyn CryptoProvider,
     cipher_suites: Vec<SupportedCipherSuite>,
     kx_groups: Vec<&'static dyn SupportedKxGroup>,
     versions: versions::EnabledVersions,
     verifier: Arc<dyn verify::ServerCertVerifier>,
 }
 
-impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsClientCert> {
+impl ConfigBuilder<ClientConfig, WantsClientCert> {
     #[cfg(feature = "ring")]
     /// Sets a single certificate chain and matching private key for use
     /// in client authentication.
@@ -79,7 +81,7 @@ impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsClientCert> {
         self,
         cert_chain: Vec<CertificateDer<'static>>,
         key_der: PrivateKeyDer<'static>,
-    ) -> Result<ClientConfig<C>, Error> {
+    ) -> Result<ClientConfig, Error> {
         let resolver = handy::AlwaysResolvesClientCert::new(cert_chain, &key_der)?;
         Ok(self.with_client_cert_resolver(Arc::new(resolver)))
     }
@@ -97,12 +99,12 @@ impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsClientCert> {
         self,
         cert_chain: Vec<CertificateDer<'static>>,
         key_der: PrivateKeyDer<'static>,
-    ) -> Result<ClientConfig<C>, Error> {
+    ) -> Result<ClientConfig, Error> {
         self.with_client_auth_cert(cert_chain, key_der)
     }
 
     /// Do not support client auth.
-    pub fn with_no_client_auth(self) -> ClientConfig<C> {
+    pub fn with_no_client_auth(self) -> ClientConfig {
         self.with_client_cert_resolver(Arc::new(handy::FailResolveClientCert {}))
     }
 
@@ -110,8 +112,9 @@ impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsClientCert> {
     pub fn with_client_cert_resolver(
         self,
         client_auth_cert_resolver: Arc<dyn ResolvesClientCert>,
-    ) -> ClientConfig<C> {
+    ) -> ClientConfig {
         ClientConfig {
+            provider: self.state.provider,
             cipher_suites: self.state.cipher_suites,
             kx_groups: self.state.kx_groups,
             alpn_protocols: Vec::new(),
@@ -125,7 +128,6 @@ impl<C: CryptoProvider> ConfigBuilder<ClientConfig<C>, WantsClientCert> {
             #[cfg(feature = "secret_extraction")]
             enable_secret_extraction: false,
             enable_early_data: false,
-            provider: PhantomData,
         }
     }
 }
