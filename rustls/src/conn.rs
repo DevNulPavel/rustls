@@ -622,8 +622,13 @@ impl<Data> ConnectionCore<Data> {
 
         while let Some(msg) = self.deframe()? {
             match self.process_msg(msg, state) {
-                Ok(new) => state = new,
+                Ok(new) => {
+                    // dbg!("Message process ok");
+                    state = new
+                }
                 Err(e) => {
+                    // println!("Message process err: {}", e);
+
                     self.state = Err(e.clone());
                     return Err(e);
                 }
@@ -636,6 +641,8 @@ impl<Data> ConnectionCore<Data> {
 
     /// Pull a message out of the deframer and send any messages that need to be sent as a result.
     fn deframe(&mut self) -> Result<Option<PlainMessage>, Error> {
+        // dbg!("deframe pop");
+
         match self
             .message_deframer
             .pop(&mut self.common_state.record_layer)
@@ -661,6 +668,7 @@ impl<Data> ConnectionCore<Data> {
             }
             Ok(None) => Ok(None),
             Err(err @ Error::InvalidMessage(_)) => {
+                // dbg!("invalid message");
                 #[cfg(feature = "quic")]
                 if self.common_state.is_quic() {
                     self.common_state.quic.alert = Some(AlertDescription::DecodeError);
@@ -673,12 +681,19 @@ impl<Data> ConnectionCore<Data> {
                     err
                 })
             }
-            Err(err @ Error::PeerSentOversizedRecord) => Err(self
-                .common_state
-                .send_fatal_alert(AlertDescription::RecordOverflow, err)),
-            Err(err @ Error::DecryptError) => Err(self
-                .common_state
-                .send_fatal_alert(AlertDescription::BadRecordMac, err)),
+            Err(err @ Error::PeerSentOversizedRecord) => {
+                // dbg!("oversize");
+
+                Err(self
+                    .common_state
+                    .send_fatal_alert(AlertDescription::RecordOverflow, err))
+            }
+            Err(err @ Error::DecryptError) => {
+                // dbg!("decrypt err");
+                Err(self
+                    .common_state
+                    .send_fatal_alert(AlertDescription::BadRecordMac, err))
+            }
             Err(e) => Err(e),
         }
     }
@@ -688,6 +703,9 @@ impl<Data> ConnectionCore<Data> {
         msg: PlainMessage,
         state: Box<dyn State<Data>>,
     ) -> Result<Box<dyn State<Data>>, Error> {
+        // dbg!("Message process");
+        // dbg!(&msg);
+
         // Drop CCS messages during handshake in TLS1.3
         if msg.typ == ContentType::ChangeCipherSpec
             && !self
@@ -698,6 +716,8 @@ impl<Data> ConnectionCore<Data> {
             if !is_valid_ccs(&msg)
                 || self.common_state.received_middlebox_ccs > TLS13_MAX_DROPPED_CCS
             {
+                // dbg!("not valid ccs");
+
                 // "An implementation which receives any other change_cipher_spec value or
                 //  which receives a protected change_cipher_spec record MUST abort the
                 //  handshake with an "unexpected_message" alert."
@@ -721,6 +741,7 @@ impl<Data> ConnectionCore<Data> {
                     .send_fatal_alert(AlertDescription::DecodeError, err));
             }
         };
+        // dbg!(&msg);
 
         // For alerts, we have separate logic.
         if let MessagePayload::Alert(alert) = &msg.payload {

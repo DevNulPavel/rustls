@@ -41,6 +41,7 @@ impl MessageDeframer {
     /// `Ok(Some(_))` if a valid message was found and decrypted successfully.
     pub fn pop(&mut self, record_layer: &mut RecordLayer) -> Result<Option<Deframed>, Error> {
         if let Some(last_err) = self.last_error.clone() {
+            // dbg!("last_err");
             return Err(last_err);
         } else if self.used == 0 {
             return Ok(None);
@@ -122,7 +123,11 @@ impl MessageDeframer {
                     self.discard(end);
                     continue;
                 }
-                Err(e) => return Err(e),
+                Err(e) => {
+                    // dbg!("custom_err");
+
+                    return Err(e);
+                }
             };
 
             if self.joining_hs.is_some() && msg.typ != ContentType::Handshake {

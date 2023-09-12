@@ -31,7 +31,8 @@ use crate::client::client_conn::ClientConnectionData;
 use crate::client::common::ClientHelloDetails;
 use crate::client::{tls13, ClientConfig, ServerName};
 
-use std::ops::Deref;
+use core::num::ParseIntError;
+use core::ops::Deref;
 use std::sync::Arc;
 
 pub(super) type NextState = Box<dyn State<ClientConnectionData>>;
@@ -242,11 +243,15 @@ fn emit_client_hello_for_retry(
         exts.push(ClientExtension::SignedCertificateTimestampRequest);
     }
 
-    if let Some(key_share) = &key_share {
+    let key_share_new = if let Some(key_share) = &key_share {
         debug_assert!(support_tls13);
         let key_share = KeyShareEntry::new(key_share.group(), key_share.pubkey.as_ref());
-        exts.push(ClientExtension::KeyShare(vec![key_share]));
-    }
+        exts.push(ClientExtension::KeyShare(vec![key_share.clone()]));
+
+        Some(key_share)
+    } else {
+        None
+    };
 
     if let Some(cookie) = retryreq.and_then(HelloRetryRequest::get_cookie) {
         exts.push(ClientExtension::Cookie(cookie.clone()));
@@ -308,6 +313,39 @@ fn emit_client_hello_for_retry(
         None
     };
 
+    // Curl
+    // let payload = format!("010001350303{:?}20{:?}0062130313021301cca9cca8ccaac030c02cc028c024c014c00a009f006b0039ff8500c400880081009d003d003500c00084c02fc02bc027c023c013c009009e0067003300be0045009c003c002f00ba0041c011c00700050004c012c0080016000a00ff0100008a002b0009080304030303020301003300260024001d0020012e9e1a6bb6d3288cd4df7be07995f0936dca81db7dda14c0575460d0980f5c0000000d000b000008686162722e636f6d000b00020100000a000a0008001d001700180019000d00180016080606010603080505010503080404010403020102030010000e000c02683208687474702f312e31", input.random, input.session_id);
+
+    // Valid hyper
+    // let payload = format!("010000e70303{:?}20{:?}0016130113031302c02bc02fc02cc030cca9cca8cca800ff01000088002b0003020304000b00020100000a00080006001d00170018000d001400120503040308070806080508040601050104010017000000050005010000000000120000003300260024001d0020d97f8fa62c9358086bc0f77f31540eaf558b2af3ced3d1764e5d0ca94fdcf47c002d000201010010000e000c08687474702f312e3102683200230000", input.random, input.session_id);
+
+    // Valid hyper
+    // let payload = format!("010000e70303{:?}20{:?}0016130113031302c02bc02fc02cc030cca9cca8cca800ff01000088002b0003020304000b00020100000a00080006001d00170018000d001400120503040308070806080508040601050104010017000000050005010000000000120000003300260024001d0020{:?}002d000201010010000e000c08687474702f312e3102683200230000", input.random, input.session_id, key_share_new.unwrap().payload);
+
+    // Chrome
+    let server_name = input.server_name.for_sni().unwrap();
+    let server_name_hex = encode_hex(server_name.as_ref().as_bytes());
+    let server_name_all_hex =
+        encode_hex(&((server_name.as_ref().len() + 5) as u16).to_be_bytes());
+    let server_name_total_hex =
+        encode_hex(&((server_name.as_ref().len() + 3) as u16).to_be_bytes());
+    let server_name_len_hex = encode_hex(&((server_name.as_ref().len()) as u16).to_be_bytes());
+    let mut payload = format!("010001fc0303{:?}20{:?}0020baba130113021303c02bc02fc02cc030cca9cca8c013c014009c009d002f003501000193baba00000033002b00296a6a000100001d0020{:?}0005000501000000000010000e000c02683208687474702f312e31000a000a00086a6a001d0017001800230000001b0003020002ff01000100002d00020101002b000706fafa0304030300120000000d00120010040308040401050308050501080606014469000500030268320000{}{}00{}{}00170000000b000201004a4a0001000015", 
+        input.random, 
+        input.session_id, 
+        key_share_new.unwrap().payload, 
+        server_name_all_hex,
+        server_name_total_hex, 
+        server_name_len_hex, 
+        server_name_hex
+    );
+    let padding_len = (512 - (payload.len() / 2)).max(0);
+    let padding_len_hex = encode_hex(&(padding_len).to_be_bytes());
+    payload.push_str(&padding_len_hex);
+    let padding_buf: String = "0".repeat(padding_len * 2 - 4);
+    payload.push_str(&padding_buf);
+    
+
     let ch = Message {
         // "This value MUST be set to 0x0303 for all records generated
         //  by a TLS 1.3 implementation other than an initial ClientHello
@@ -318,6 +356,10 @@ fn emit_client_hello_for_retry(
             ProtocolVersion::TLSv1_0
         },
         payload: MessagePayload::handshake(chp),
+        // payload: MessagePayload::Handshake {
+        //     parsed: chp,
+        //     encoded: Payload(decode_hex(&payload).unwrap()),
+        // },
     };
 
     if retryreq.is_some() {
@@ -326,7 +368,7 @@ fn emit_client_hello_for_retry(
         tls13::emit_fake_ccs(&mut input.sent_tls13_fake_ccs, cx.common);
     }
 
-    trace!("Sending ClientHello {:#?}", ch);
+    println!("Sending ClientHello {:#?}", ch);
 
     transcript_buffer.add_message(&ch);
     cx.common.send_msg(ch, false);
@@ -488,6 +530,8 @@ pub(super) fn sct_list_is_invalid(scts: &[Sct]) -> bool {
 
 impl State<ClientConnectionData> for ExpectServerHello {
     fn handle(mut self: Box<Self>, cx: &mut ClientContext<'_>, m: Message) -> NextStateOrError {
+        // dbg!("handle");
+
         let server_hello =
             require_handshake_msg!(m, HandshakeType::ServerHello, HandshakePayload::ServerHello)?;
         trace!("We got ServerHello {:#?}", server_hello);
@@ -593,6 +637,8 @@ impl State<ClientConnectionData> for ExpectServerHello {
                 )
             })?;
 
+        // dbg!("found suite", suite);
+
         if version != suite.version().version {
             return Err({
                 cx.common.send_fatal_alert(
@@ -612,7 +658,7 @@ impl State<ClientConnectionData> for ExpectServerHello {
                 });
             }
             _ => {
-                debug!("Using ciphersuite {:?}", suite);
+                // dbg!("Using ciphersuite", suite);
                 self.suite = Some(suite);
                 cx.common.suite = Some(suite);
             }
@@ -625,6 +671,8 @@ impl State<ClientConnectionData> for ExpectServerHello {
         transcript.add_message(&m);
 
         let randoms = ConnectionRandoms::new(self.input.random, server_hello.random);
+        // dbg!("random savings");
+
         // For TLS1.3, start message encryption using
         // handshake_traffic_secret.
         match suite {
@@ -638,6 +686,9 @@ impl State<ClientConnectionData> for ExpectServerHello {
                         #[cfg(feature = "tls12")]
                         ClientSessionValue::Tls12(_) => None,
                     });
+
+                // dbg!("TLS1.3 server hello");
+                // dbg!(&resuming_session);
 
                 tls13::handle_server_hello(
                     self.input.config,
@@ -657,6 +708,8 @@ impl State<ClientConnectionData> for ExpectServerHello {
             }
             #[cfg(feature = "tls12")]
             SupportedCipherSuite::Tls12(suite) => {
+                // dbg!("TLS1.1 server hello");
+
                 let resuming_session = self
                     .input
                     .resuming
@@ -914,4 +967,20 @@ impl Deref for ClientSessionValue {
     fn deref(&self) -> &Self::Target {
         self.common()
     }
+}
+
+fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+        .collect()
+}
+
+fn encode_hex(bytes: &[u8]) -> String {
+    use core::fmt::Write;
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        write!(&mut s, "{:02x}", b).unwrap();
+    }
+    s
 }

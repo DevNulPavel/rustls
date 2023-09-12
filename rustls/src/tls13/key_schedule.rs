@@ -180,6 +180,8 @@ impl KeyScheduleHandshakeStart {
         self.ks.suite = suite;
         let new = self.into_handshake(hs_hash, key_log, client_random, common);
 
+        // dbg!("set client decrypter");
+
         // Decrypt with the peer's key, encrypt with our own key
         new.ks
             .set_decrypter(&new.server_handshake_traffic_secret, common);

@@ -159,6 +159,8 @@ impl RecordLayer {
         &mut self,
         encr: OpaqueMessage,
     ) -> Result<Option<Decrypted>, Error> {
+        // dbg!("decrypt incoming");
+
         if self.decrypt_state != DirectionState::Active {
             return Ok(Some(Decrypted {
                 want_close_before_decrypt: false,
@@ -176,7 +178,10 @@ impl RecordLayer {
         // failure has already happened.
         let want_close_before_decrypt = self.read_seq == SEQ_SOFT_LIMIT;
 
+        // let encrypted_len = dbg!(encr.payload.0.len());
         let encrypted_len = encr.payload.0.len();
+
+        // dbg!("try to decrypt message");
         match self
             .message_decrypter
             .decrypt(encr, self.read_seq)
@@ -189,7 +194,7 @@ impl RecordLayer {
                 }))
             }
             Err(Error::DecryptError) if self.doing_trial_decryption(encrypted_len) => {
-                trace!("Dropping undecryptable message after aborted early_data");
+                // dbg!("Dropping undecryptable message after aborted early_data");
                 Ok(None)
             }
             Err(err) => Err(err),

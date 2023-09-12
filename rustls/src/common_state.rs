@@ -467,6 +467,8 @@ impl CommonState {
     }
 
     pub(crate) fn send_cert_verify_error_alert(&mut self, err: Error) -> Error {
+        // dbg!("Cert verify error");
+
         self.send_fatal_alert(
             match &err {
                 Error::InvalidCertificate(e) => e.clone().into(),

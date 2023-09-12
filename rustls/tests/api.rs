@@ -4400,7 +4400,7 @@ fn test_client_tls12_no_resume_after_server_downgrade() {
     );
     server_config_2.session_storage = Arc::new(rustls::server::NoServerSessionStorage {});
 
-    dbg!("handshake 1");
+    // dbg!("handshake 1");
     let mut client_1 =
         ClientConnection::new(client_config.clone(), "localhost".try_into().unwrap()).unwrap();
     let mut server_1 = ServerConnection::new(server_config_1).unwrap();
@@ -4421,7 +4421,7 @@ fn test_client_tls12_no_resume_after_server_downgrade() {
         ClientStorageOp::InsertTls13Ticket(_)
     ));
 
-    dbg!("handshake 2");
+    // dbg!("handshake 2");
     let mut client_2 =
         ClientConnection::new(client_config, "localhost".try_into().unwrap()).unwrap();
     let mut server_2 = ServerConnection::new(Arc::new(server_config_2)).unwrap();
