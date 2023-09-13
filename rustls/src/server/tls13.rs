@@ -152,8 +152,6 @@ mod client_hello {
             client_hello: &ClientHelloPayload,
             mut sigschemes_ext: Vec<SignatureScheme>,
         ) -> hs::NextStateOrError {
-            // dbg!("handle hello");
-
             if client_hello.compression_methods.len() != 1 {
                 return Err(cx.common.send_fatal_alert(
                     AlertDescription::IllegalParameter,

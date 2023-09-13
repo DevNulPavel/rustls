@@ -76,11 +76,7 @@ pub(super) fn handle_server_hello(
     our_key_share: kx::KeyExchange,
     mut sent_tls13_fake_ccs: bool,
 ) -> hs::NextStateOrError {
-    // dbg!("handle server hello 1");
-
     validate_server_hello(cx.common, server_hello)?;
-
-    // dbg!("handle server hello 2");
 
     let their_key_share = server_hello
         .get_key_share()
@@ -90,9 +86,6 @@ pub(super) fn handle_server_hello(
                 PeerMisbehaved::MissingKeyShare,
             )
         })?;
-
-    // dbg!("handle server hello 3");
-    // dbg!(their_key_share);
 
     if our_key_share.group() != their_key_share.group {
         return Err({
@@ -106,11 +99,7 @@ pub(super) fn handle_server_hello(
     let key_schedule_pre_handshake = if let (Some(selected_psk), Some(early_key_schedule)) =
         (server_hello.get_psk_index(), early_key_schedule)
     {
-        // dbg!("selected psk");
-
         if let Some(ref resuming) = resuming_session {
-            // dbg!("resuming");
-
             let resuming_suite = match suite.can_resume_from(resuming.suite()) {
                 Some(resuming) => resuming,
                 None => {
@@ -150,8 +139,7 @@ pub(super) fn handle_server_hello(
         }
         KeySchedulePreHandshake::from(early_key_schedule)
     } else {
-        // dbg!("Not resuming");
-
+        debug!("Not resuming");
         // Discard the early data key schedule.
         cx.data.early_data.rejected();
         cx.common.early_traffic = false;
@@ -183,7 +171,6 @@ pub(super) fn handle_server_hello(
         cx.common,
     );
 
-    // dbg!("send fake change cipher");
     emit_fake_ccs(&mut sent_tls13_fake_ccs, cx.common);
 
     Ok(Box::new(ExpectEncryptedExtensions {
@@ -345,8 +332,6 @@ fn validate_encrypted_extensions(
     hello: &ClientHelloDetails,
     exts: &Vec<ServerExtension>,
 ) -> Result<(), Error> {
-    // dbg!("extention validate");
-
     if exts.has_duplicate_extension() {
         return Err(common.send_fatal_alert(
             AlertDescription::DecodeError,
@@ -393,12 +378,10 @@ impl State<ClientConnectionData> for ExpectEncryptedExtensions {
             HandshakeType::EncryptedExtensions,
             HandshakePayload::EncryptedExtensions
         )?;
-        // dbg!("TLS1.3 encrypted extensions: {:?}", exts);
-        
+        debug!("TLS1.3 encrypted extensions: {:?}", exts);
         self.transcript.add_message(&m);
 
         validate_encrypted_extensions(cx.common, &self.hello, exts)?;
-
         hs::process_alpn_protocol(cx.common, &self.config, exts.get_alpn_protocol())?;
 
         #[cfg(feature = "quic")]
