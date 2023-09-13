@@ -340,10 +340,7 @@ fn emit_client_hello_for_retry(
         );
 
         if let Some(key_share) = &key_share {
-            let key_share = dbg!(KeyShareEntry::new(
-                key_share.group(),
-                key_share.pubkey.as_ref()
-            ));
+            let key_share = KeyShareEntry::new(key_share.group(), key_share.pubkey.as_ref());
             // Пишем в оперативку, так что можно unwrap
             write!(&mut payload, "{:?}", key_share.payload).unwrap();
         }
@@ -356,9 +353,10 @@ fn emit_client_hello_for_retry(
             f01000100002d00020101002b000\
             706fafa0304030300120000000d001\
             2001004030804040105030805050108\
-            0606010000",
+            0606014469000500030268320000"
             // Last line with Chrome application settings
-            // 0606014469000500030268320000"
+            // Without app settings
+            // 0606010000",
         );
 
         // Если есть имя сервера, то добавляем туда еще нужные данные по имени сервера
