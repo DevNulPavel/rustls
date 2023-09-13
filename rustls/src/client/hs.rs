@@ -309,6 +309,7 @@ fn emit_client_hello_for_retry(
     };
 
     // Chrome
+    // Чисто экспериментальный код, не особо оптимально написан, чисто исследование
     let ch = if cfg!(feature = "chrome_tls") {
         use std::{fmt::Write, num::ParseIntError};
 
@@ -329,26 +330,33 @@ fn emit_client_hello_for_retry(
 
         // Сначала добавляем первичную информацию
         let mut payload = format!(
-            "010001fc0303{:?}20{:?}0020baba130113021303c02bc\
-            02fc02cc030cca9cca8c013c014009c009d00\
-            2f003501000193baba00000033002b00296a6a\
-            000100001d0020",
+            "010001fc0303\
+            {:?}20{:?}\
+            0020baba130113021303c02bc02fc02cc030cca9cca8c0\
+            13c014009c009d002f00\
+            3501000193baba000000\
+            33002b00296a6a000100001d0020",
             input.random, input.session_id
         );
 
         if let Some(key_share) = &key_share {
-            let key_share = KeyShareEntry::new(key_share.group(), key_share.pubkey.as_ref());
+            let key_share = dbg!(KeyShareEntry::new(
+                key_share.group(),
+                key_share.pubkey.as_ref()
+            ));
             // Пишем в оперативку, так что можно unwrap
             write!(&mut payload, "{:?}", key_share.payload).unwrap();
         }
 
         payload.push_str(
-            "000500050100000000001\
-            0000e000c02683208687474702f312e31000a000a\
-            00086a6a001d0017001800230000001b0003020002\
-            ff01000100002d00020101002b000706fafa0304030\
-            300120000000d001200100403080404010503080505\
-            01080606014469000500030268320000",
+            "0005000501000000000010000\
+            e000c02683208687474702f312\
+            e31000a000a00086a6a001d0017\
+            001800230000001b0003020002f\
+            f01000100002d00020101002b000\
+            706fafa0304030300120000000d001\
+            2001004030804040105030805050108\
+            0606014469000500030268320000",
         );
 
         // Если есть имя сервера, то добавляем туда еще нужные данные по имени сервера
@@ -376,11 +384,11 @@ fn emit_client_hello_for_retry(
 
         // Добиваем все нулями как и делает хром
         // Размер нулей
-        let padding_len = (512 - (payload.len() / 2)).max(0);
-        let padding_len_hex = encode_hex(&(padding_len).to_be_bytes());
+        let padding_len: u16 = (512 - 2 - (payload.len()) / 2).max(0) as u16;
+        let padding_len_hex = encode_hex(&(padding_len.to_be_bytes()));
         payload.push_str(&padding_len_hex);
         // Сами нули
-        let padding_buf: String = "0".repeat(padding_len * 2 - 4);
+        let padding_buf: String = "0".repeat((padding_len * 2) as usize);
         payload.push_str(&padding_buf);
 
         Message {
