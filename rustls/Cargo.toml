@@ -29,6 +29,7 @@ secret_extraction = []
 quic = []
 tls12 = []
 read_buf = ["rustversion"]
+chrome_tls = []
 
 [dev-dependencies]
 bencher = "0.1.5"

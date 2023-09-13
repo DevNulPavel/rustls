@@ -308,16 +308,107 @@ fn emit_client_hello_for_retry(
         None
     };
 
-    let ch = Message {
-        // "This value MUST be set to 0x0303 for all records generated
-        //  by a TLS 1.3 implementation other than an initial ClientHello
-        //  (i.e., one not generated after a HelloRetryRequest)"
-        version: if retryreq.is_some() {
-            ProtocolVersion::TLSv1_2
-        } else {
-            ProtocolVersion::TLSv1_0
-        },
-        payload: MessagePayload::handshake(chp),
+    // Chrome
+    let ch = if cfg!(feature = "chrome_tls") {
+        use std::{fmt::Write, num::ParseIntError};
+
+        fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+            (0..s.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+                .collect()
+        }
+
+        fn encode_hex(bytes: &[u8]) -> String {
+            let mut s = String::with_capacity(bytes.len() * 2);
+            for &b in bytes {
+                write!(&mut s, "{:02x}", b).unwrap();
+            }
+            s
+        }
+
+        // Сначала добавляем первичную информацию
+        let mut payload = format!(
+            "010001fc0303{:?}20{:?}0020baba130113021303c02bc\
+            02fc02cc030cca9cca8c013c014009c009d00\
+            2f003501000193baba00000033002b00296a6a\
+            000100001d0020",
+            input.random, input.session_id
+        );
+
+        if let Some(key_share) = &key_share {
+            let key_share = KeyShareEntry::new(key_share.group(), key_share.pubkey.as_ref());
+            // Пишем в оперативку, так что можно unwrap
+            write!(&mut payload, "{:?}", key_share.payload).unwrap();
+        }
+
+        payload.push_str(
+            "000500050100000000001\
+            0000e000c02683208687474702f312e31000a000a\
+            00086a6a001d0017001800230000001b0003020002\
+            ff01000100002d00020101002b000706fafa0304030\
+            300120000000d001200100403080404010503080505\
+            01080606014469000500030268320000",
+        );
+
+        // Если есть имя сервера, то добавляем туда еще нужные данные по имени сервера
+        if let Some(server_name) = input.server_name.for_sni() {
+            // Да, здесь не очень оптимально в плане аллокаций при конвертации, но вроде бы не критично
+            let server_name_hex = encode_hex(server_name.as_ref().as_bytes());
+            let server_name_all_hex =
+                encode_hex(&((server_name.as_ref().len() + 5) as u16).to_be_bytes());
+            let server_name_total_hex =
+                encode_hex(&((server_name.as_ref().len() + 3) as u16).to_be_bytes());
+            let server_name_len_hex =
+                encode_hex(&((server_name.as_ref().len()) as u16).to_be_bytes());
+
+            // Пишем в оперативку, так что можно unwrap
+            write!(
+                &mut payload,
+                "{}{}00{}{}",
+                server_name_all_hex, server_name_total_hex, server_name_len_hex, server_name_hex
+            )
+            .unwrap();
+        }
+
+        // Добавляем остаточные данные
+        payload.push_str("00170000000b000201004a4a0001000015");
+
+        // Добиваем все нулями как и делает хром
+        // Размер нулей
+        let padding_len = (512 - (payload.len() / 2)).max(0);
+        let padding_len_hex = encode_hex(&(padding_len).to_be_bytes());
+        payload.push_str(&padding_len_hex);
+        // Сами нули
+        let padding_buf: String = "0".repeat(padding_len * 2 - 4);
+        payload.push_str(&padding_buf);
+
+        Message {
+            // "This value MUST be set to 0x0303 for all records generated
+            //  by a TLS 1.3 implementation other than an initial ClientHello
+            //  (i.e., one not generated after a HelloRetryRequest)"
+            version: if retryreq.is_some() {
+                ProtocolVersion::TLSv1_2
+            } else {
+                ProtocolVersion::TLSv1_0
+            },
+            payload: MessagePayload::Handshake {
+                parsed: chp,
+                encoded: Payload(decode_hex(&payload).unwrap()),
+            },
+        }
+    } else {
+        Message {
+            // "This value MUST be set to 0x0303 for all records generated
+            //  by a TLS 1.3 implementation other than an initial ClientHello
+            //  (i.e., one not generated after a HelloRetryRequest)"
+            version: if retryreq.is_some() {
+                ProtocolVersion::TLSv1_2
+            } else {
+                ProtocolVersion::TLSv1_0
+            },
+            payload: MessagePayload::handshake(chp),
+        }
     };
 
     if retryreq.is_some() {
