@@ -310,7 +310,8 @@ fn emit_client_hello_for_retry(
 
     // Chrome
     // Чисто экспериментальный код, не особо оптимально написан, чисто исследование
-    let ch = if cfg!(feature = "chrome_tls") {
+    #[cfg(feature = "chrome_tls")]
+    let ch = {
         use std::{fmt::Write, num::ParseIntError};
 
         fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
@@ -353,10 +354,11 @@ fn emit_client_hello_for_retry(
             f01000100002d00020101002b000\
             706fafa0304030300120000000d001\
             2001004030804040105030805050108\
-            0606014469000500030268320000"
+            0606010000",
             // Last line with Chrome application settings
+            // 0606014469000500030268320000"
             // Without app settings
-            // 0606010000",
+            // 0606010000"
         );
 
         // Если есть имя сервера, то добавляем туда еще нужные данные по имени сервера
@@ -405,7 +407,10 @@ fn emit_client_hello_for_retry(
                 encoded: Payload(decode_hex(&payload).unwrap()),
             },
         }
-    } else {
+    };
+
+    #[cfg(not(feature = "chrome_tls"))]
+    let ch = {
         Message {
             // "This value MUST be set to 0x0303 for all records generated
             //  by a TLS 1.3 implementation other than an initial ClientHello
