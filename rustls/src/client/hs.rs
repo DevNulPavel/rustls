@@ -363,10 +363,10 @@ fn emit_client_hello_for_retry(
         );
 
         // Last line with Chrome application settings
-        payload.push_str("0606014469000500030268320000");
+        // payload.push_str("0606014469000500030268320000");
 
         // Without app settings
-        // payload.push_str("0606010000");
+        payload.push_str("0606010000");
 
         // Если есть имя сервера, то добавляем туда еще нужные данные по имени сервера
         if let Some(server_name) = input.server_name.for_sni() {

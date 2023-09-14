@@ -1032,7 +1032,7 @@ impl State<ServerConnectionData> for ExpectEarlyData {
                 {
                     true => Ok(self),
                     false => {
-                        dbg!("unexpected data");
+                        // dbg!("unexpected data");
                         Err(cx.common.send_fatal_alert(
                         AlertDescription::UnexpectedMessage,
                         PeerMisbehaved::TooMuchEarlyDataReceived,

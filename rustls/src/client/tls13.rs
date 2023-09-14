@@ -340,7 +340,7 @@ fn validate_encrypted_extensions(
     }
 
     if hello.server_sent_unsolicited_extensions(exts, &[]) {
-        dbg!("unsolicted");
+        // dbg!("unsolicted");
         return Err(common.send_fatal_alert(
             AlertDescription::UnsupportedExtension,
             PeerMisbehaved::UnsolicitedEncryptedExtension,
@@ -1021,7 +1021,7 @@ impl ExpectTraffic {
         #[cfg(feature = "quic")]
         {
             if let Protocol::Quic = common.protocol {
-                dbg!("unexpected quick");
+                // dbg!("unexpected quick");
                 return Err(common.send_fatal_alert(
                     AlertDescription::UnexpectedMessage,
                     PeerMisbehaved::KeyUpdateReceivedInQuicConnection,

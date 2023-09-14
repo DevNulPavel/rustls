@@ -2251,13 +2251,13 @@ impl HandshakeMessagePayload {
                 HandshakePayload::CertificateStatus(CertificateStatus::read(&mut sub)?)
             }
             HandshakeType::MessageHash => {
-                dbg!("unexpected hash");
+                // dbg!("unexpected hash");
                 // does not appear on the wire
                 return Err(InvalidMessage::UnexpectedMessage("MessageHash"));
             }
             HandshakeType::HelloRetryRequest => {
                 // not legal on wire
-                dbg!("unexpected message");
+                // dbg!("unexpected message");
                 return Err(InvalidMessage::UnexpectedMessage("HelloRetryRequest"));
             }
             _ => HandshakePayload::Unknown(Payload::read(&mut sub)),

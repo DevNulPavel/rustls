@@ -174,7 +174,7 @@ impl CommonState {
             }
             Err(e @ Error::InappropriateMessage { .. })
             | Err(e @ Error::InappropriateHandshakeMessage { .. }) => {
-                dbg!("unexpected state");
+                // dbg!("unexpected state");
                 Err(self.send_fatal_alert(AlertDescription::UnexpectedMessage, e))
             }
             Err(e) => Err(e),
@@ -209,7 +209,7 @@ impl CommonState {
     // which is illegal.  Not mentioned in RFC.
     pub(crate) fn check_aligned_handshake(&mut self) -> Result<(), Error> {
         if !self.aligned_handshake {
-            dbg!("alert");
+            // dbg!("alert");
             Err(self.send_fatal_alert(
                 AlertDescription::UnexpectedMessage,
                 PeerMisbehaved::KeyEpochWithPendingFragment,
@@ -438,11 +438,11 @@ impl CommonState {
     }
 
     pub(crate) fn process_alert(&mut self, alert: &AlertMessagePayload) -> Result<(), Error> {
-        dbg!("Alert process");
+        // dbg!("Alert process");
 
         // Reject unknown AlertLevels.
         if let AlertLevel::Unknown(_) = alert.level {
-            dbg!("Alert process inner");
+            // dbg!("Alert process inner");
 
             return Err(self.send_fatal_alert(
                 AlertDescription::IllegalParameter,
