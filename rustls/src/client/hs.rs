@@ -354,7 +354,7 @@ fn emit_client_hello_for_retry(
         );
 
         // Certificate compression (Disable for Medium)
-        payload.push_str("001b0003020002");
+        // payload.push_str("001b0003020002");
 
         payload.push_str(
             "ff01000100002d00020101002b000\
