@@ -107,6 +107,7 @@ enum_builder! {
         SessionTicket => 0x0023,
         PreSharedKey => 0x0029,
         EarlyData => 0x002a,
+        ApplicationSettings => 0x4469,
         SupportedVersions => 0x002b,
         Cookie => 0x002c,
         PSKKeyExchangeModes => 0x002d,

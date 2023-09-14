@@ -701,6 +701,7 @@ impl<Data> ConnectionCore<Data> {
                 // "An implementation which receives any other change_cipher_spec value or
                 //  which receives a protected change_cipher_spec record MUST abort the
                 //  handshake with an "unexpected_message" alert."
+                dbg!("unexpected");
                 return Err(self.common_state.send_fatal_alert(
                     AlertDescription::UnexpectedMessage,
                     PeerMisbehaved::IllegalMiddleboxChangeCipherSpec,
@@ -713,6 +714,8 @@ impl<Data> ConnectionCore<Data> {
         }
 
         // Now we can fully parse the message payload.
+        dbg!("Message try");
+        dbg!(&msg);
         let msg = match Message::try_from(msg) {
             Ok(msg) => msg,
             Err(err) => {
@@ -721,6 +724,7 @@ impl<Data> ConnectionCore<Data> {
                     .send_fatal_alert(AlertDescription::DecodeError, err));
             }
         };
+        dbg!(&msg);
 
         // For alerts, we have separate logic.
         if let MessagePayload::Alert(alert) = &msg.payload {

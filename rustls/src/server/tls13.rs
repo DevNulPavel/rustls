@@ -1031,10 +1031,13 @@ impl State<ServerConnectionData> for ExpectEarlyData {
                     .take_received_plaintext(payload)
                 {
                     true => Ok(self),
-                    false => Err(cx.common.send_fatal_alert(
+                    false => {
+                        dbg!("unexpected data");
+                        Err(cx.common.send_fatal_alert(
                         AlertDescription::UnexpectedMessage,
                         PeerMisbehaved::TooMuchEarlyDataReceived,
-                    )),
+                    ))
+                },
                 }
             }
             MessagePayload::Handshake {

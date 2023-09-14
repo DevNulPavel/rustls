@@ -712,6 +712,7 @@ pub enum ServerExtension {
     TransportParameters(Vec<u8>),
     TransportParametersDraft(Vec<u8>),
     EarlyData,
+    ApplicationSettings(Vec<u8>),
     Unknown(UnknownExtension),
 }
 
@@ -732,6 +733,7 @@ impl ServerExtension {
             Self::TransportParameters(_) => ExtensionType::TransportParameters,
             Self::TransportParametersDraft(_) => ExtensionType::TransportParametersDraft,
             Self::EarlyData => ExtensionType::EarlyData,
+            Self::ApplicationSettings(_) => ExtensionType::ApplicationSettings,
             Self::Unknown(ref r) => r.typ,
         }
     }
@@ -758,6 +760,7 @@ impl Codec for ServerExtension {
             Self::TransportParameters(ref r) | Self::TransportParametersDraft(ref r) => {
                 sub.extend_from_slice(r);
             }
+            Self::ApplicationSettings(ref r) => sub.extend_from_slice(r),
             Self::Unknown(ref r) => r.encode(&mut sub),
         }
 
@@ -789,6 +792,7 @@ impl Codec for ServerExtension {
                 Self::TransportParametersDraft(sub.rest().to_vec())
             }
             ExtensionType::EarlyData => Self::EarlyData,
+            ExtensionType::ApplicationSettings => Self::ApplicationSettings(sub.rest().to_vec()),
             _ => Self::Unknown(UnknownExtension::read(typ, &mut sub)),
         };
 
@@ -2247,11 +2251,13 @@ impl HandshakeMessagePayload {
                 HandshakePayload::CertificateStatus(CertificateStatus::read(&mut sub)?)
             }
             HandshakeType::MessageHash => {
+                dbg!("unexpected hash");
                 // does not appear on the wire
                 return Err(InvalidMessage::UnexpectedMessage("MessageHash"));
             }
             HandshakeType::HelloRetryRequest => {
                 // not legal on wire
+                dbg!("unexpected message");
                 return Err(InvalidMessage::UnexpectedMessage("HelloRetryRequest"));
             }
             _ => HandshakePayload::Unknown(Payload::read(&mut sub)),

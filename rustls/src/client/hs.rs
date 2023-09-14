@@ -350,16 +350,23 @@ fn emit_client_hello_for_retry(
             "0005000501000000000010000\
             e000c02683208687474702f312\
             e31000a000a00086a6a001d0017\
-            001800230000001b0003020002f\
-            f01000100002d00020101002b000\
-            706fafa0304030300120000000d001\
-            2001004030804040105030805050108\
-            0606010000",
-            // Last line with Chrome application settings
-            // 0606014469000500030268320000"
-            // Without app settings
-            // 0606010000"
+            001800230000",
         );
+
+        // Certificate compression
+        // payload.push_str("001b0003020002");
+
+        payload.push_str(
+            "ff01000100002d00020101002b000\
+            706fafa0304030300120000000d001\
+            2001004030804040105030805050108",
+        );
+
+        // Last line with Chrome application settings
+        payload.push_str("0606014469000500030268320000");
+
+        // Without app settings
+        // payload.push_str("0606010000");
 
         // Если есть имя сервера, то добавляем туда еще нужные данные по имени сервера
         if let Some(server_name) = input.server_name.for_sni() {

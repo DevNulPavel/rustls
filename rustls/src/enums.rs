@@ -71,6 +71,7 @@ enum_builder! {
         CertificateURL => 0x15,
         CertificateStatus => 0x16,
         KeyUpdate => 0x18,
+        WhatIsIt => 0x19,
         MessageHash => 0xfe
     }
 }
