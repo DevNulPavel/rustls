@@ -310,7 +310,7 @@ fn emit_client_hello_for_retry(
 
     // Chrome
     // Чисто экспериментальный код, не особо оптимально написан, чисто исследование
-    #[cfg(feature = "chrome_tls")]
+    // #[cfg(feature = "chrome_tls")]
     let ch = {
         use std::{fmt::Write, num::ParseIntError};
 
@@ -353,8 +353,8 @@ fn emit_client_hello_for_retry(
             001800230000",
         );
 
-        // Certificate compression
-        // payload.push_str("001b0003020002");
+        // Certificate compression (Disable for Medium)
+        payload.push_str("001b0003020002");
 
         payload.push_str(
             "ff01000100002d00020101002b000\
@@ -365,7 +365,7 @@ fn emit_client_hello_for_retry(
         // Last line with Chrome application settings
         // payload.push_str("0606014469000500030268320000");
 
-        // Without app settings
+        // Without unsupported app settings
         payload.push_str("0606010000");
 
         // Если есть имя сервера, то добавляем туда еще нужные данные по имени сервера
@@ -416,20 +416,20 @@ fn emit_client_hello_for_retry(
         }
     };
 
-    #[cfg(not(feature = "chrome_tls"))]
-    let ch = {
-        Message {
-            // "This value MUST be set to 0x0303 for all records generated
-            //  by a TLS 1.3 implementation other than an initial ClientHello
-            //  (i.e., one not generated after a HelloRetryRequest)"
-            version: if retryreq.is_some() {
-                ProtocolVersion::TLSv1_2
-            } else {
-                ProtocolVersion::TLSv1_0
-            },
-            payload: MessagePayload::handshake(chp),
-        }
-    };
+    // #[cfg(not(feature = "chrome_tls"))]
+    // let ch = {
+    //     Message {
+    //         // "This value MUST be set to 0x0303 for all records generated
+    //         //  by a TLS 1.3 implementation other than an initial ClientHello
+    //         //  (i.e., one not generated after a HelloRetryRequest)"
+    //         version: if retryreq.is_some() {
+    //             ProtocolVersion::TLSv1_2
+    //         } else {
+    //             ProtocolVersion::TLSv1_0
+    //         },
+    //         payload: MessagePayload::handshake(chp),
+    //     }
+    // };
 
     if retryreq.is_some() {
         // send dummy CCS to fool middleboxes prior
